@@ -1,0 +1,9 @@
+{
+  "name": "highcontrast",
+  "version": "0.0.1",
+  "title": "High contrast graphics",
+  "author": "cube",
+  "contact": "blue.cube@seznam.cz",
+  "www": "https://github.com/bluecube/factorio-highcontrast",
+  "description": "This mod overrides some of the graphics from Factorio base mod with simple 2D boxes."
+}
