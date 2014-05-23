@@ -2,7 +2,7 @@
 
 class FactContent {
 
-    public $content = array();
+    public $tree = array();
 
     public function __construct(SimpleXMLElement $xml)
     {
@@ -11,7 +11,7 @@ class FactContent {
 
     protected function fill(SimpleXMLElement $xml)
     {
-        $this->content = $this->toArray($xml);
+        $this->tree = $this->toArray($xml);
     }
 
     protected function toArray($xml) {
@@ -30,14 +30,14 @@ class FactContent {
 
     public function getItemKeys()
     {
-        $items =& $this->content['raw']['item'];
+        $items =& $this->tree['raw']['item'];
         return array_keys($items);
     }
 
     public function getItemKeysSorted()
     {
         $keys = array();
-        $items =& $this->content['raw']['item'];
+        $items =& $this->tree['raw']['item'];
         foreach ($items as $key => $value) {
             $keys[$key] = $value['order'];
         }
@@ -47,10 +47,10 @@ class FactContent {
 
     public function getItem($key)
     {
-        if (!array_key_exists($key, $this->content['raw']['item'])) {
+        if (!array_key_exists($key, $this->tree['raw']['item'])) {
             throw new InvalidArgumentException("invalid item '$key'");
         }
-        return $this->content['raw']['item'][$key];
+        return $this->tree['raw']['item'][$key];
     }
 
 }

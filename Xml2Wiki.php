@@ -11,7 +11,7 @@ include_once('FactPage.php');
 $xml = simplexml_load_file($argv[1]);
 $content = new FactContent($xml);
 
-print_r($content->content['raw']['item']);
+print_r($content->tree['raw']['item']);
 
 print_r($content->getItemKeysSorted());
 print_r($content->getItemKeys());
