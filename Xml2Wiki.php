@@ -4,7 +4,7 @@
  * Convert generated XML-file (by LuaRaw2XML.lua) to Wiki-pages
  *
  * needs as first parameter the xml-file. Example:
- * > ./Xml2Wiki.php tmp/factorio-data.xml
+ * > ./Xml2Wiki.php tmp/factorio-data.xml factorio/data/base/locale factorio/data/core/locale
  *
  *
  * export XDEBUG_CONFIG="idekey=PHPSTORM"
@@ -17,23 +17,29 @@ include_once('FactTrans.php');
 
 $xml = simplexml_load_file($argv[1]);
 $content = new FactContent($xml);
-
-// debug
-print_r($content->tree['raw']['item']);
-print_r($content->getItemKeysSorted());
-print_r($content->getItemKeys());
+$trans = new FactTrans(array_slice($argv, 2)); // takes rest of arguments
 
 
-createItemPages($content);
+createItemPages($content, $trans);
 
 /**
  * create ITEM pages
  *
  * @param FactContent $content
  */
-function createItemPages(FactContent $content) {
+function createItemPages(FactContent $content, FactTrans $trans) {
     foreach ($content->getItemKeys() as $key) {
         echo "Page: $key\n";
+
+        $item = $content->getItem($key);
+
+        foreach ($trans->getAvailableLanguages() as $language) {
+           echo " / $language: " . $trans->getTranslation($language, 'entity-names', 'entity-name', $key);
+        }
+
+        print_r($item);
+
+
 
     }
 }

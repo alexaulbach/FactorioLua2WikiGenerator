@@ -26,6 +26,7 @@ class FactContent {
     }
 
 
+    // ITEMS
 
 
     public function getItemKeys()
