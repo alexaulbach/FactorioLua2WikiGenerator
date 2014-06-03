@@ -29,17 +29,21 @@ createItemPages($content, $trans);
  */
 function createItemPages(FactContent $content, FactTrans $trans) {
     foreach ($content->getItemKeys() as $key) {
-        echo "Page: $key\n";
-
         $item = $content->getItem($key);
 
         foreach ($trans->getAvailableLanguages() as $language) {
-           echo " / $language: " . $trans->getTranslation($language, 'entity-names', 'entity-name', $key);
+            if ($language != FactTrans::DEFAULT_LANGUAGE) {
+                $pagename = 'Item:' . $key . '/' . $language;
+            } else {
+                $pagename = 'Item:' . $key;
+            }
+
+            echo "\nPagename: $pagename";
+
+            echo " / $language: " . $trans->getFallbackLDefaultOrKey($language, 'entity-names', 'entity-name', $key);
         }
 
         print_r($item);
-
-
 
     }
 }

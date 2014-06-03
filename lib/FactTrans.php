@@ -15,20 +15,26 @@ class FactTrans {
     public function __construct(array $translationBasedirs)
     {
         foreach ($translationBasedirs as $translationBasedir) {
-            $translationBasedir = rtrim($translationBasedir, '/');
+            $translationBasedir = rtrim($translationBasedir, '/'); // remove trailing '/'
             // construct new
             $languagesDirHandle = dir($translationBasedir);
 
+            // read languages subdir
             while (false !== ($language = $languagesDirHandle->read())) {
                 if (!preg_match('/^\w\w$/', $language)) continue;
+
                 if (!in_array($language, $this->_availableLanguages)) {
                     $this->_availableLanguages[] = $language;
                 }
                 $inifilesDirHandle = dir($translationBasedir . DIRECTORY_SEPARATOR . $language);
+
+                // read ini-files per language
                 while (false !== ($inifile = $inifilesDirHandle->read())) {
                     if (!preg_match('/.*.cfg$/', $inifile)) continue;
+
                     $ini = preg_replace('/.cfg$/', '', $inifile);
-                    // not handling multiple ini-files per language yet!
+
+                    // not handling equal named ini-files in different basedirs per language yet!
                     if (!empty($this->_inifilesPerLanguage[$language][$ini])) {
                         throw new InvalidArgumentException("Cannot set two inifiles for lang: '$lang', ini: '$ini'");
                     }
@@ -43,40 +49,62 @@ class FactTrans {
         return $this->_availableLanguages;
     }
 
-    public function getTranslation($lang, $cfg, $ini, $defaultTrans)
+
+    public function getFallbackLDefaultOrKey($lang, $cfgIni, $section, $translationKey)
     {
-        $translations = $this->_getTranslationsFromCache($lang, $cfg);
+        $translation = $this->getFallbackDefault($lang, $cfgIni, $section, $translationKey);
 
-        if (is_null($translations)) {
-            $translations = $this->_readTranslations($lang, $cfg);
-            $this->_setTranslationsCache($lang, $cfg, $translations);
+        if (empty($translation)) {
+            $translation = "<{$translationKey}>";
+        }
+        return $translation;
+    }
+
+
+    public function getFallbackDefault($lang, $cfgIni, $section, $translationKey)
+    {
+        $translation = $this->get($lang, $cfgIni, $section, $translationKey);
+
+        if (empty($translation) and $lang != self::DEFAULT_LANGUAGE) {
+            $translation = $this->get(self::DEFAULT_LANGUAGE, $cfgIni, $section, $translationKey);
+        }
+        return $translation;
+    }
+
+    public function get($lang, $cfgIni, $section, $translationKey)
+    {
+        $translationsPerIni = $this->_getTranslationsFromCache($lang, $cfgIni);
+
+        if (is_null($translationsPerIni)) {
+            $translationsPerIni = $this->_readTranslations($lang, $cfgIni);
+            $this->_setTranslationsCache($lang, $cfgIni, $translationsPerIni);
         }
 
-        if (!empty($translations) and !array_key_exists($ini, $translations)) {
-            throw new InvalidArgumentException("Ini doesn't exists for '$lang/$cfg/$ini");
+        if (!empty($translationsPerIni) and !array_key_exists($section, $translationsPerIni)) {
+            throw new InvalidArgumentException("Ini doesn't exists for '$lang/$cfgIni/$section");
         }
-        if (array_key_exists($defaultTrans, $translations[$ini])) {
-            return $translations[$ini][$defaultTrans];
+        if (array_key_exists($translationKey, $translationsPerIni[$section])) {
+            return $translationsPerIni[$section][$translationKey];
         }
 
         return null;
     }
 
 
-    protected function _readTranslations($lang, $cfg)
+    protected function _readTranslations($lang, $cfgIni)
     {
-        if (empty($this->_inifilesPerLanguage[$lang][$cfg])) {
-            throw new InvalidArgumentException("No ini-file for '$lang/$cfg'");
+        if (empty($this->_inifilesPerLanguage[$lang][$cfgIni])) {
+            throw new InvalidArgumentException("No ini-file for '$lang/$cfgIni'");
         }
 
-        $translationsPerIni = $this->_readTranslationsPerIni($this->_inifilesPerLanguage[$lang][$cfg]);
+        $translationsPerIni = $this->_readTranslationsPerIni($this->_inifilesPerLanguage[$lang][$cfgIni]);
 
         if (empty($translationsPerIni)) {
             if (self::DEFAULT_LANGUAGE != $lang) {
-                echo "\nProblem loading '$lang/$cfg'! Loading default language!\n";
-                $translationsPerIni = $this->_readTranslations(self::DEFAULT_LANGUAGE, $cfg);
+                echo "\nProblem loading '$lang/$cfgIni'! Loading default language!\n";
+                $translationsPerIni = $this->_readTranslations(self::DEFAULT_LANGUAGE, $cfgIni);
             } else {
-                echo "\nProblem while loading default language '$lang/$cfg'!!!";
+                echo "\nProblem while loading default language '$lang/$cfgIni'!!!";
             }
         }
         return $translationsPerIni;
@@ -84,28 +112,25 @@ class FactTrans {
 
     protected function _readTranslationsPerIni($path)
     {
-        // This doesn't work:
-        // $translationsPerIni = parse_ini_file($this->_inifilesPerLanguage[$lang][$cfg], true);
-        // Reason: Factorio uses keywords like "on", "off" in the translations, which are interpreted values
-        $translationsPerIni = parse_ini_string(file_get_contents($path), true, INI_SCANNER_RAW);
-
+        // Switched to INI_SCANNER_RAW, Reason: Factorio uses keywords like "on", "off" in the translations, which are interpreted values
+        $translationsPerIni = parse_ini_file($path, true, INI_SCANNER_RAW);
         return $translationsPerIni;
     }
 
-    protected function _getTranslationsFromCache($lang, $cfg)
+    protected function _getTranslationsFromCache($lang, $cfgIni)
     {
-        if (!empty($this->_translationCache[$lang][$cfg])) {
-            return $this->_translationCache[$lang][$cfg];
+        if (!empty($this->_translationCache[$lang][$cfgIni])) {
+            return $this->_translationCache[$lang][$cfgIni];
         }
         return null;
     }
 
-    protected function _setTranslationsCache($lang, $cfg, $translations)
+    protected function _setTranslationsCache($lang, $cfgIni, $translationsPerIni)
     {
-        if (!empty($this->_translationCache[$lang][$cfg])) {
-            throw new InvalidArgumentException("Already filled cache for '$lang/$cfg'");
+        if (!empty($this->_translationCache[$lang][$cfgIni])) {
+            throw new InvalidArgumentException("Already filled cache for '$lang/$cfgIni'");
         }
-        $this->_translationCache[$lang][$cfg] = $translations;
+        $this->_translationCache[$lang][$cfgIni] = $translationsPerIni;
     }
 
 
