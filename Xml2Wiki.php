@@ -27,7 +27,10 @@ createItemPages($content, $trans);
  *
  * @param FactContent $content
  */
-function createItemPages(FactContent $content, FactTrans $trans) {
+function createItemPages(FactContent $content, FactTrans $trans)
+{
+    $page = new FactPage($trans, 'lib/PageItem.phtml', 'entity-names', 'entity-name');
+
     foreach ($content->getItemKeys() as $key) {
         $item = $content->getItem($key);
 
@@ -41,9 +44,11 @@ function createItemPages(FactContent $content, FactTrans $trans) {
             echo "\nPagename: $pagename";
 
             echo " / $language: " . $trans->getFallbackLDefaultOrKey($language, 'entity-names', 'entity-name', $key);
+
+            $page->createPage($key, $item, $language);
         }
 
-        print_r($item);
+#        print_r($item);
 
     }
 }

@@ -1,19 +1,88 @@
 <?php
 
+/**
+ * File FactTrans
+ *
+ * @author ssilk (Alex Aulbach)
+ * @date   2014-05-18
+ */
 
 
+/**
+ * Class FactTrans
+ *
+ * Handles Factorios language-config files and can find translations for a given name.
+ *
+ * For setup, it needs one ore more tranlation-basedirs (in in the application path); for example:
+ *
+ *   data/base/locale
+ *   data/core/locale
+ *
+ * It assumes this directory structure:
+ *
+ *   ch/
+ *      autoplace-control-names.cfg
+ *      damage-type-names.cfg
+ *      ...
+ *   cz/
+ *      ...
+ *      entity-names.cfg
+ *      item-names.cfg
+ *      ...
+ *    da/
+ *      ...
+ *    de/
+ *      ...
+ *    en/
+ *      ...
+ *
+ * The *.cfg-files are the cfgIni-Files or one translation. Inside that translations are the sections (it's a ini-file).
+ */
 class FactTrans {
 
+    /**
+     * The default language is English.
+     */
     const DEFAULT_LANGUAGE = 'en';
 
+    /**
+     * The cache for the read translation-files
+     *
+     * @var array
+     */
     protected $_translationCache = array();
 
+    /**
+     * All found languages.
+     *
+     * Filled after initialization
+     *
+     * @var array
+     */
     protected $_availableLanguages = array();
 
+    /**
+     * All paths of all language-cfg-files.
+     *
+     * Filled after initialization.
+     *
+     * @var array
+     */
     protected $_inifilesPerLanguage = array();
 
+
+    /**
+     * Initialize this class with unlimited numbers of translation-basedirs.
+     *
+     *
+     * @param array $translationBasedirs
+     */
     public function __construct(array $translationBasedirs)
     {
+        if (!count($translationBasedirs)) {
+            throw new InvalidArgumentException('No translations given. I give up here');
+        }
+
         foreach ($translationBasedirs as $translationBasedir) {
             $translationBasedir = rtrim($translationBasedir, '/'); // remove trailing '/'
             // construct new
@@ -36,7 +105,7 @@ class FactTrans {
 
                     // not handling equal named ini-files in different basedirs per language yet!
                     if (!empty($this->_inifilesPerLanguage[$language][$ini])) {
-                        throw new InvalidArgumentException("Cannot set two inifiles for lang: '$lang', ini: '$ini'");
+                        throw new InvalidArgumentException("Cannot set two identical named inifiles (from different basedirs) for lang: '$language', ini: '$ini'");
                     }
                     $this->_inifilesPerLanguage[$language][$ini] = $translationBasedir . DIRECTORY_SEPARATOR . $language . DIRECTORY_SEPARATOR . $inifile;
                 }
@@ -44,23 +113,53 @@ class FactTrans {
         }
     }
 
+
+    /**
+     * Returns a list of found languages
+     *
+     *   0 => 'de'
+     *   1 => 'en'
+     *   ...
+     *
+     * @return array
+     */
     public function getAvailableLanguages()
     {
         return $this->_availableLanguages;
     }
 
-
+    /**
+     * Get the translation for this language in this cfgIni at section with this translationKey or the fallback or just the translation-key.
+     *
+     * If a translation for a translation-key is not found it first looks, if the same translation is available as
+     * default-language (=en) and if that also not exists it returns the translation-key embraced with "<'...'>"
+     *
+     * @param $lang
+     * @param $cfgIni
+     * @param $section
+     * @param $translationKey
+     * @return string
+     */
     public function getFallbackLDefaultOrKey($lang, $cfgIni, $section, $translationKey)
     {
         $translation = $this->getFallbackDefault($lang, $cfgIni, $section, $translationKey);
 
         if (empty($translation)) {
-            $translation = "<{$translationKey}>";
+            $translation = "<'{$translationKey}'>";
         }
+
         return $translation;
     }
 
-
+    /**
+     * Get the translation for this language in this cfgIni at section with this translationKey or the fallback-language.
+     *
+     * @param $lang
+     * @param $cfgIni
+     * @param $section
+     * @param $translationKey
+     * @return null|string
+     */
     public function getFallbackDefault($lang, $cfgIni, $section, $translationKey)
     {
         $translation = $this->get($lang, $cfgIni, $section, $translationKey);
@@ -68,9 +167,24 @@ class FactTrans {
         if (empty($translation) and $lang != self::DEFAULT_LANGUAGE) {
             $translation = $this->get(self::DEFAULT_LANGUAGE, $cfgIni, $section, $translationKey);
         }
+
         return $translation;
     }
 
+    /**
+     * Get the translation for this language in this cfgIni at section with this translationKey.
+     *
+     * This method looks first up in the internal cache. If not found it reads the translation and stores it in the cache.
+     *
+     * Note: this cache handling is not well implemented; think to a getFromCache()-method before extending this!
+     *
+     * @param $lang
+     * @param $cfgIni
+     * @param $section
+     * @param $translationKey
+     * @return null|string
+     * @throws InvalidArgumentException
+     */
     public function get($lang, $cfgIni, $section, $translationKey)
     {
         $translationsPerIni = $this->_getTranslationsFromCache($lang, $cfgIni);
@@ -91,6 +205,16 @@ class FactTrans {
     }
 
 
+    /**
+     * Read the translations from for this language and cfgIni.
+     *
+     * Replaces a non-existent config for this langugage with the default-language.
+     *
+     * @param $lang
+     * @param $cfgIni
+     * @return array
+     * @throws InvalidArgumentException
+     */
     protected function _readTranslations($lang, $cfgIni)
     {
         if (empty($this->_inifilesPerLanguage[$lang][$cfgIni])) {
@@ -110,6 +234,12 @@ class FactTrans {
         return $translationsPerIni;
     }
 
+    /**
+     * Load a translation from path and returns the parsed translations as array.
+     *
+     * @param $path
+     * @return array
+     */
     protected function _readTranslationsPerIni($path)
     {
         // Switched to INI_SCANNER_RAW, Reason: Factorio uses keywords like "on", "off" in the translations, which are interpreted values
@@ -117,6 +247,13 @@ class FactTrans {
         return $translationsPerIni;
     }
 
+    /**
+     * Read a translation from cache.
+     *
+     * @param $lang
+     * @param $cfgIni
+     * @return null|string
+     */
     protected function _getTranslationsFromCache($lang, $cfgIni)
     {
         if (!empty($this->_translationCache[$lang][$cfgIni])) {
@@ -125,6 +262,14 @@ class FactTrans {
         return null;
     }
 
+    /**
+     * Stores a translation into cache
+     *
+     * @param $lang
+     * @param $cfgIni
+     * @param $translationsPerIni
+     * @throws InvalidArgumentException
+     */
     protected function _setTranslationsCache($lang, $cfgIni, $translationsPerIni)
     {
         if (!empty($this->_translationCache[$lang][$cfgIni])) {
