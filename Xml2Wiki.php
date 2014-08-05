@@ -14,6 +14,7 @@ ini_set('include_path', ini_get('include_path') . ':' . dirname(__FILE__) . DIRE
 
 
 include_once('FactContent.php');
+include_once('FactContentModules.php');
 include_once('FactContentItem.php');
 include_once('FactContentDataRawList.php');
 include_once('FactPage.php');
@@ -26,7 +27,8 @@ date_default_timezone_set(FACT_TIMEZONE);
 
 $xml = simplexml_load_file($argv[1]);
 $content = new FactContent($xml);
-$trans = new FactTransDefault(array_slice($argv, 2)); // takes rest of arguments
+$modules = new FactContentModules($content);
+$trans = new FactTransDefault($modules->getLocalPaths());
 
 
 #createItemPages($content, $trans);
@@ -40,7 +42,7 @@ createDataRawList($content, $trans);
 function createItemPages(FactContent $rawContent, FactTransDefault $trans)
 {
     $trans->setDefault('entity-names', 'entity-name');
-    $content = new FactContentItem($content);
+    $content = new FactContentItem($rawContent);
     $page = new FactPage($trans, 'templates/PageItem.phtml');
 
     foreach ($content->getKeys() as $key) {

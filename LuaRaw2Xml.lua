@@ -21,7 +21,7 @@
 --
 
 ---------------------------------------------------------------
---
+--- convert xml special chars
 function toXmlString(value)
     value:gsub("&", "&&");
     value:gsub("<", "&lt;");
@@ -47,7 +47,10 @@ function xmlTabLoop(tag, value, level)
         reps, tag, printval, reps, tag)
 end
 
---
+--- convert data to xml
+--- two special rules:
+--- if the type is nil, then the tag is "nil!"
+--- if type is a number then the tag is "iterator"
 function xml(tag, value, level)
     local printval
     local typ = type(value)
@@ -84,7 +87,7 @@ function xml(tag, value, level)
 
 end
 
---
+--- print modules-section
 function toXMLPrintModules(module_info)
     io.write("\n<modules>");
     for k, v in pairs(module_info) do
@@ -100,7 +103,7 @@ end
 --
 function toXMLPrintHeader()
     io.write('<?xml version="1.0" encoding="UTF-8"?>')
-    io.write("\n<!-- Factorio XML generator, ßilk (Alex. Aulbach), Jan-Apr 2014 -->");
+    io.write("\n<!-- Factorio XML generator, ßilk (Alex. Aulbach), Jan-Aug 2014 -->")
 end
 
 --
@@ -110,15 +113,18 @@ function toXml(root)
 
     io.write("\n<factorio>");
 
+    io.write("\n<conversion-date>" ..  os.date() .. "</conversion-date>")
+
     toXMLPrintModules(data.module_info)
     print(xml('raw', data.raw, 0))
 
     io.write("\n</factorio>");
 end
 
---
+--- sorting in lua is much more complicated than this, sorry
 local function sortData(unsortedData)
     assert(true, "Sorry, but option 'sort' is currently not working"); -- sort not working yet
+--[[
     local k,v
     local newv
     local temp = {}
@@ -143,9 +149,13 @@ local function sortData(unsortedData)
     end
 
     return sortedData
+]]
 end
 
--- set defaults
+--------------------------------------------------------------------
+--- Read the arguments
+
+--- set defaults
 local options = {
     output = 'xml',
 --    sort = false, -- sort is not working yet

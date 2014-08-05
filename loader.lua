@@ -18,6 +18,8 @@ function Loader.load_data(paths)
     local order
     local old_path, path
 
+    assert(#paths > 0, "No paths given.")
+
     -- loop over all paths
     for i = 1, #paths do
         -- add the module info
@@ -34,7 +36,8 @@ function Loader.load_data(paths)
             -- load lualib in core
             path = order[val]
 
-            if val == 'core'    then
+            -- special: The core-module has the lualib-dir, which needs to be added
+            if val == 'core' then
                 package.path = path .. "/lualib/?.lua;" .. package.path
                 require("dataloader")
             end
@@ -90,7 +93,7 @@ function Loader.dependenciesOrder(module_info)
     while #order < numinfo do
         for key,val in pairs(module_info) do
             for o = 1, #order do
-                -- add dependency if it dependend module is already in the order list
+                -- add dependency, if dependend module is already in the order list
                 for dep = 1, #val['dependencies'] do
                     if order[o] == val['dependencies'][dep] then
                         order[#order + 1] = val['name']
@@ -126,7 +129,7 @@ function Loader.moduleInfoCompatibilityPatches(module_info)
     local k, v, version
     for k,v in pairs(module_info) do
         if k == 'base' then
-            v['dependencies'] = {'core' }
+            v['dependencies'] = {'core'}
             version = v['version']
         end
     end
@@ -140,9 +143,9 @@ end
 -- returns in every case a valid json
 function Loader.loadModuleInfo(path)
     local infopath = path .. "/info.json"
-    if not Loader.fileExists(infopath) then
-        return '{}'
-    end
+
+    assert(Loader.fileExists(infopath), "File not existing: '" .. path .. "/info.json'")
+
     assert(io.input(path .. "/info.json",
            "\nCannot open the 'info.json' file for '" .. path .. "'"))
     file_content = io.read("*all")
