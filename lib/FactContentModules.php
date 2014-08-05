@@ -1,17 +1,17 @@
 <?php
 
 /**
- * File FactContent
+ * File FactContentModules
  *
  * @author ssilk (Alex Aulbach)
- * @date   2014-06-18
+ * @date   2014-08-05
  */
 
 
 /**
- * Class FactContent
+ * Class FactContentModules
  *
- * Handles the XML-structure and useful sub-structures.
+ * Handles the XML-module-structure.
  */
 class FactContentModules {
 
@@ -22,6 +22,9 @@ class FactContentModules {
      */
     public $tree = array();
 
+    /**
+     * @var array
+     */
     protected $_moduleList = array();
 
     /**
@@ -35,6 +38,9 @@ class FactContentModules {
         $this->_initializeModules();
     }
 
+    /**
+     * Initialize a list of modules <-> key
+     */
     protected function _initializeModules()
     {
         foreach ($this->tree as $key => $module) {
@@ -42,6 +48,13 @@ class FactContentModules {
         }
     }
 
+    /**
+     * Find key of moduleName
+     *
+     * @param $moduleName
+     * @return mixed
+     * @throws InvalidArgumentException
+     */
     protected function _getModuleKey($moduleName)
     {
         $key = array_search($moduleName, $this->_moduleList);
@@ -61,6 +74,13 @@ class FactContentModules {
         return $this->_moduleList;
     }
 
+    /**
+     * Find a module by name and return it's localPath
+     *
+     * @param $moduleName
+     * @return mixed
+     * @throws InvalidArgumentException
+     */
     public function getLocalPath($moduleName)
     {
         $path = $this->tree[$this->_getModuleKey($moduleName)]['content']['localPath'];
@@ -70,6 +90,11 @@ class FactContentModules {
         return $path;
     }
 
+    /**
+     * Get all paths from all modules
+     *
+     * @return array
+     */
     public function getLocalPaths()
     {
         $paths = array();
