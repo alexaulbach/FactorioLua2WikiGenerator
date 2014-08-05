@@ -74,8 +74,10 @@ class FactTrans {
     /**
      * Initialize this class with unlimited numbers of translation-basedirs.
      *
+     * It walks through the directories structure and remembers languages and config-paths.
      *
      * @param array $translationBasedirs
+     * @throws InvalidArgumentException
      */
     public function __construct(array $translationBasedirs)
     {
@@ -85,29 +87,31 @@ class FactTrans {
 
         foreach ($translationBasedirs as $translationBasedir) {
             $translationBasedir = rtrim($translationBasedir, '/'); // remove trailing '/'
+
             // construct new
             $languagesDirHandle = dir($translationBasedir);
 
             // read languages subdir
             while (false !== ($language = $languagesDirHandle->read())) {
-                if (!preg_match('/^\w\w$/', $language)) continue;
+                if (!preg_match('/^\w\w$/', $language)) continue; // jump over . or .. etc.
 
                 if (!in_array($language, $this->_availableLanguages)) {
                     $this->_availableLanguages[] = $language;
                 }
+
                 $inifilesDirHandle = dir($translationBasedir . DIRECTORY_SEPARATOR . $language);
 
                 // read ini-files per language
                 while (false !== ($inifile = $inifilesDirHandle->read())) {
-                    if (!preg_match('/.*.cfg$/', $inifile)) continue;
+                    if (!preg_match('/.*.cfg$/', $inifile)) continue; // read only *.cfg-files
 
-                    $ini = preg_replace('/.cfg$/', '', $inifile);
+                    $cfgIni = preg_replace('/.cfg$/', '', $inifile);
 
                     // not handling equal named ini-files in different basedirs per language yet!
-                    if (!empty($this->_inifilesPerLanguage[$language][$ini])) {
-                        throw new InvalidArgumentException("Cannot set two identical named inifiles (from different basedirs) for lang: '$language', ini: '$ini'");
+                    if (!empty($this->_inifilesPerLanguage[$language][$cfgIni])) {
+                        throw new InvalidArgumentException("Cannot set two identical named inifiles (from different basedirs) for lang: '$language', ini: '$cfgIni'");
                     }
-                    $this->_inifilesPerLanguage[$language][$ini] = $translationBasedir . DIRECTORY_SEPARATOR . $language . DIRECTORY_SEPARATOR . $inifile;
+                    $this->_inifilesPerLanguage[$language][$cfgIni] = $translationBasedir . DIRECTORY_SEPARATOR . $language . DIRECTORY_SEPARATOR . $inifile;
                 }
             }
         }
@@ -140,9 +144,9 @@ class FactTrans {
      * @param $translationKey
      * @return string
      */
-    public function getFallbackLDefaultOrKey($lang, $cfgIni, $section, $translationKey)
+    public function getFallbackLDefaultOrKey($lang, $translationKey, $cfgIni, $section)
     {
-        $translation = $this->getFallbackDefault($lang, $cfgIni, $section, $translationKey);
+        $translation = $this->getFallbackDefault($lang, $translationKey, $cfgIni, $section);
 
         if (empty($translation)) {
             $translation = "<'{$translationKey}'>";
@@ -160,12 +164,12 @@ class FactTrans {
      * @param $translationKey
      * @return null|string
      */
-    public function getFallbackDefault($lang, $cfgIni, $section, $translationKey)
+    public function getFallbackDefault($lang, $translationKey, $cfgIni, $section)
     {
-        $translation = $this->get($lang, $cfgIni, $section, $translationKey);
+        $translation = $this->get($lang, $translationKey, $cfgIni, $section);
 
         if (empty($translation) and $lang != self::DEFAULT_LANGUAGE) {
-            $translation = $this->get(self::DEFAULT_LANGUAGE, $cfgIni, $section, $translationKey);
+            $translation = $this->get(self::DEFAULT_LANGUAGE, $translationKey, $cfgIni, $section);
         }
 
         return $translation;
@@ -185,7 +189,7 @@ class FactTrans {
      * @return null|string
      * @throws InvalidArgumentException
      */
-    public function get($lang, $cfgIni, $section, $translationKey)
+    public function get($lang, $translationKey, $cfgIni, $section)
     {
         $translationsPerIni = $this->_getTranslationsFromCache($lang, $cfgIni);
 
@@ -203,6 +207,10 @@ class FactTrans {
 
         return null;
     }
+
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////
+    // the whole cache-code should be outsourced into FactTransCache or so... makes it also testable.
 
 
     /**

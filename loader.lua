@@ -12,33 +12,98 @@ JSON = (loadfile "lib/JSON.lua")() -- one-time load of the routines
 --    - First one has to be "core"!
 function Loader.load_data(paths)
 
-    -- check if first path is core
-    assert(Loader.basename(paths[1]) == 'core')
+    paths = Loader.unifyPaths(paths)
+
+    local module_info = {}
+    local order
+    local old_path, path
 
     -- loop over all paths
     for i = 1, #paths do
-
-        if i == 1 then
-            package.path = paths[i] .. "/lualib/?.lua;" .. package.path
-            require("dataloader")
-        end
-
-        local old_path = package.path
-        package.path = paths[i] .. "/?.lua;" .. package.path
-
-        dofile(paths[i] .. "/data.lua")
-
-        extended_path = "./" .. paths[i]
-
         -- add the module info
-        Loader.addModuleInfo(paths[i])
-
-        -- re-repalace the substututes paths
-        Loader.path_substitutions["__" .. extended_path:gsub("^.*/([^/]+)/?$", "%1") .. "__"] = paths[i]
-
-        package.path = old_path
+        Loader.addModuleInfo(paths[i], module_info)
     end
+
+    module_info = Loader.moduleInfoCompatibilityPatches(module_info)
+
+    order = Loader.dependenciesOrder(module_info)
+
+    -- loop over all order
+    for key,val in pairs(order) do
+        if type(key) == 'number' then
+            -- load lualib in core
+            path = order[val]
+
+            if val == 'core'    then
+                package.path = path .. "/lualib/?.lua;" .. package.path
+                require("dataloader")
+            end
+
+            local old_path = package.path
+            package.path = path .. "/?.lua;" .. package.path
+
+            dofile(path .. "/data.lua")
+
+            extended_path = "./" .. val
+
+            -- re-repalace the substututes paths
+            Loader.path_substitutions["__" .. extended_path:gsub("^.*/([^/]+)/?$", "%1") .. "__"] = val
+
+            package.path = old_path
+        end
+    end
+
+    data['module_info'] = module_info
 end
+
+function Loader.unifyPaths(paths)
+    for i = 1, #paths do
+        -- remove trailing /
+        local m = paths[i]:find('(/+)$')
+        if m then
+            paths[i] = paths[i]:sub(0,m-1)
+        end
+    end
+    return paths
+end
+
+function Loader.dependenciesOrder(module_info)
+    -- mindestens ein modul ohne abhängkeit
+    local order = {}
+    local key,val
+    local o
+    local numinfo = 0
+    local dep
+
+    for key,val in pairs(module_info) do
+        numinfo = numinfo + 1
+    end
+
+    for key,val in pairs(module_info) do
+        -- add dependency, if no dependency and not added yet
+        if #val['dependencies'] == 0 then
+            order[#order + 1] = val['name']
+            order[val['name']] = val['localPath']
+        end
+    end
+
+    while #order < numinfo do
+        for key,val in pairs(module_info) do
+            for o = 1, #order do
+                -- add dependency if it dependend module is already in the order list
+                for dep = 1, #val['dependencies'] do
+                    if order[o] == val['dependencies'][dep] then
+                        order[#order + 1] = val['name']
+                        order[val['name']] = val['localPath']
+                    end
+                end
+            end
+
+        end
+    end
+    return order
+end
+
 
 
 --- Replace __mod__ references in path.
@@ -50,12 +115,25 @@ end
 
 --- add the info.json as to the data-struct, if available
 -- converts the json into lua-data
-function Loader.addModuleInfo(path)
+function Loader.addModuleInfo(path, module_info)
+    local basename = Loader.basename(path)
+    module_info[basename] = JSON:decode(Loader.loadModuleInfo(path))
+    -- add the local path to the struct to keep the source paths in the struct:
+    module_info[basename]['localPath'] = path
+end
 
-    if not data.module_info then
-        data.module_info = {}
+function Loader.moduleInfoCompatibilityPatches(module_info)
+    local k, v, version
+    for k,v in pairs(module_info) do
+        if k == 'base' then
+            v['dependencies'] = {'core' }
+            version = v['version']
+        end
     end
-    data.module_info[Loader.basename(path)] = JSON:decode(Loader.loadModuleInfo(path))
+    if module_info['core'] and version then
+        module_info['core']['version'] = version
+    end
+    return module_info
 end
 
 --- read the contents of the module info.json
@@ -65,7 +143,8 @@ function Loader.loadModuleInfo(path)
     if not Loader.fileExists(infopath) then
         return '{}'
     end
-    assert(io.input(path .. "/info.json"))
+    assert(io.input(path .. "/info.json",
+           "\nCannot open the 'info.json' file for '" .. path .. "'"))
     file_content = io.read("*all")
     if file_content then
         return file_content

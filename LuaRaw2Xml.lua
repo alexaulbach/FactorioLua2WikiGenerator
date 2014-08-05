@@ -1,4 +1,4 @@
-#!/opt/local/bin/lua
+#!/usr/local/bin/lua
 --
 -- LuaRaw2Xml
 -- (c) 2013-2014 by ßilk (Alex Aulbach)
@@ -118,7 +118,7 @@ end
 
 --
 local function sortData(unsortedData)
-    assert(true); -- sort not working yet
+    assert(true, "Sorry, but option 'sort' is currently not working"); -- sort not working yet
     local k,v
     local newv
     local temp = {}
@@ -145,16 +145,18 @@ local function sortData(unsortedData)
     return sortedData
 end
 
---- read paths and other arguments ("name=value" - style)
+-- set defaults
 local options = {
     output = 'xml',
---    sort = false,
+--    sort = false, -- sort is not working yet
     paths = { "factorio/Contents/data/core", "factorio/Contents/data/base" }
 }
 
+--- read paths and other arguments ("name=value" - style)
 function parseArgs()
     local a
     local m, n
+    local overwrite = true
     for i = 1, #arg do
         a = arg[i]
         m, n = a:match('(%a+)=(%a+)')
@@ -166,6 +168,11 @@ function parseArgs()
             end
             options[m] = n
         else
+            -- assume, that if one path is given remove default paths
+            if  overwrite then
+                options.paths = {}
+                overwrite = false
+            end
             options.paths[#options.paths + 1] = a
         end
     end

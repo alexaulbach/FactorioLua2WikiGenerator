@@ -23,25 +23,28 @@ class FactPage
     const PAGE_SUBDIR = 'pages';
 
 
+    public $translator;
+
+    public $rendererFilepath;
+
+    public $language;
+
+    public $pagename;
+
+    public $view;
+
+
     /**
      * Defines, which renderer will be included (really very straightforward)
      *
-     * @param FactTrans $translator
-     * @param $rendererPath
-     * @param $cfgIni
-     * @param $section
+     * @param \FactTrans|\FactTransDefault $translator
+     * @param $rendererFilepath
      */
-    public function __construct(FactTrans $translator, $rendererPath, $cfgIni, $section)
+    public function __construct(FactTransDefault $translator, $rendererFilepath = null)
     {
         $this->translator = $translator;
 
-        $this->rendererPath = $rendererPath;
-
-        $this->cfgIni = $cfgIni;
-
-        $this->section = $section;
-
-        date_default_timezone_set('UTC');
+        $this->rendererFilepath = $rendererFilepath;
     }
 
 
@@ -56,7 +59,8 @@ class FactPage
      * - a language (the page-template translates all needed stuff then itself). This also modifies the true pagename magically :)
      *
      * @param $pagename
-     * @param FactView $view
+     * @param array $view
+     * @param $language
      */
     public function createPage($pagename, array $view, $language)
     {
@@ -65,13 +69,9 @@ class FactPage
         $this->view     = $view;
 
         $content = $this->render($view);
-
         $path = $this->pagenameToPath($pagename, $language);
-        $this->createDirHier($path);
 
-        if (! ($handle = fopen($path, 'w')) ) die("Cannot write '$path'");
-        fputs($handle, $content, strlen($content));
-        fclose($handle);
+        $this->writeFile($path, $content);
     }
 
     /**
@@ -82,7 +82,7 @@ class FactPage
     {
         ob_start();
 
-        include $this->rendererPath;
+        include $this->rendererFilepath;
 
         $content = ob_get_contents();
         ob_end_clean();
@@ -90,17 +90,24 @@ class FactPage
         return $content;
     }
 
+    public function writeFile($path, $content)
+    {
+        $this->createDirHier($path);
+
+        if (! ($handle = fopen($path, 'w')) ) die("Cannot write '$path'");
+        fputs($handle, $content, strlen($content));
+        fclose($handle);
+    }
+
     /**
      * TODO: Very straigtforward, many fixed things inside!
      *
      * @param $pagename
+     * @param $language
      * @return mixed|string
      */
     protected function pagenameToPath($pagename, $language)
     {
-#        // replace "/de" to ".de"
-#        $path = preg_replace('#/(\w\w)$#', '.\1', $pagename);
-#        $path = str_replace(':', '/', $path);
         $path = self::PAGE_SUBDIR . DIRECTORY_SEPARATOR . "$pagename:$language.page";
 
         return $path;
@@ -130,12 +137,13 @@ class FactPage
     public function version()
     {
         // very quirky :)
+        // should return the current last tag, which is supposed to be the current version...
         return `git describe --tags`;
     }
 
     public function templateName()
     {
-        return preg_replace('/Page(\w+).phtml/', '\1', basename($this->rendererPath));
+        return preg_replace('/Page(\w+).phtml/', '\1', basename($this->rendererFilepath));
     }
 
     public function pagename()
@@ -145,7 +153,7 @@ class FactPage
 
     public function tr($key)
     {
-        return $this->translator->getFallbackLDefaultOrKey($this->language, $this->cfgIni, $this->section, $key);
+        return $this->translator->getFallbackLDefaultOrKey($this->language, $key);
     }
 
 

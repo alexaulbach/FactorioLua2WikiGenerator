@@ -11,28 +11,40 @@
  */
 
 ini_set('include_path', ini_get('include_path') . ':' . dirname(__FILE__) . DIRECTORY_SEPARATOR . "lib");
+
+
 include_once('FactContent.php');
+include_once('FactContentItem.php');
+include_once('FactContentDataRawList.php');
 include_once('FactPage.php');
-include_once('FactTrans.php');
+include_once('FactTransDefault.php');
+
+const FACT_TIMEZONE = 'UTC';
+date_default_timezone_set(FACT_TIMEZONE);
+
+
 
 $xml = simplexml_load_file($argv[1]);
 $content = new FactContent($xml);
-$trans = new FactTrans(array_slice($argv, 2)); // takes rest of arguments
+$trans = new FactTransDefault(array_slice($argv, 2)); // takes rest of arguments
 
 
-createItemPages($content, $trans);
+#createItemPages($content, $trans);
+createDataRawList($content, $trans);
 
 /**
  * create ITEM pages
  *
  * @param FactContent $content
  */
-function createItemPages(FactContent $content, FactTrans $trans)
+function createItemPages(FactContent $rawContent, FactTransDefault $trans)
 {
-    $page = new FactPage($trans, 'lib/PageItem.phtml', 'entity-names', 'entity-name');
+    $trans->setDefault('entity-names', 'entity-name');
+    $content = new FactContentItem($content);
+    $page = new FactPage($trans, 'templates/PageItem.phtml');
 
-    foreach ($content->getItemKeys() as $key) {
-        $item = $content->getItem($key);
+    foreach ($content->getKeys() as $key) {
+        $item = $content->get($key);
 
         foreach ($trans->getAvailableLanguages() as $language) {
             if ($language != FactTrans::DEFAULT_LANGUAGE) {
@@ -42,13 +54,24 @@ function createItemPages(FactContent $content, FactTrans $trans)
             }
 
             echo "\nPagename: $pagename";
-
-            echo " / $language: " . $trans->getFallbackLDefaultOrKey($language, 'entity-names', 'entity-name', $key);
+            echo " / $language: " . $trans->getFallbackLDefaultOrKey($language, $key);
 
             $page->createPage($key, $item, $language);
         }
+    }
+}
 
-#        print_r($item);
+function createDataRawList(FactContent $rawContent, FactTrans $trans)
+{
+#    $trans->setDefault('', ''); // no translation needed
+    $content = new FactContentDataRawList($rawContent);
+#    $page = new FactPage($trans, 'lib/PageContent.phtml');
+
+    foreach ($content->getKeys() as $key) {
+        $list = $content->get($key);
+
+        echo "\n$key : \n";
+        print_r($list);
 
     }
 }
