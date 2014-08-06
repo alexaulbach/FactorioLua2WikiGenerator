@@ -1,7 +1,7 @@
 <?php
 
 /**
- * File FactContentModules
+ * File FactModules
  *
  * @author ssilk (Alex Aulbach)
  * @date   2014-08-05
@@ -9,11 +9,11 @@
 
 
 /**
- * Class FactContentModules
+ * Class FactModules
  *
  * Handles the XML-module-structure.
  */
-class FactContentModules {
+class FactModules {
 
     /**
      * The complete XML-tree as one big array for easy access.

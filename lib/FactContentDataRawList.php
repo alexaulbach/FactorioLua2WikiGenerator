@@ -9,7 +9,7 @@
 class FactContentDataRawList
 {
 
-    const MAXDEPTH = 3;
+    const MAXDEPTH = 12;
 
     /**
      * The complete XML-tree as one big array for easy access.
@@ -25,11 +25,7 @@ class FactContentDataRawList
      */
     public function __construct(FactContent $factContent)
     {
-        // this is a reference, to avoid copy!
-        // this is ok, cause the tree is not allowed to change during runtime!
         $this->tree =& $factContent->tree;
-#        echo "HUHU"; print_r($factContent->tree); echo "HUHU";
-#        echo "HUHU"; print_r($this->tree); echo "HUHU";
     }
 
     /**
@@ -78,7 +74,6 @@ class FactContentDataRawList
         if ($depth > self::MAXDEPTH) return '...';
 
         $subkeys = array_keys($subtree);
-
         $subkeys = $this->_sort($subkeys);
 
         // sort out basic-elements:
@@ -233,9 +228,14 @@ class FactContentDataRawList
 
     protected function _createReplacement($name, $found)
     {
+echo "FOUND $name : " ; var_export($found);
         $params = array();
-        foreach ($found as $val) {
-            $params[] = substr($val, 0, 1);
+        if (!is_array($found)) {
+            $params[] = var_export($found, true);
+        } else {
+            foreach ($found as $val) {
+                $params[] = substr($val, 0, 1);
+            }
         }
         return "$name(" . implode(',', $params) . ')';
     }

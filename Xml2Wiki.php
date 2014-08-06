@@ -14,7 +14,7 @@ ini_set('include_path', ini_get('include_path') . ':' . dirname(__FILE__) . DIRE
 
 
 include_once('FactContent.php');
-include_once('FactContentModules.php');
+include_once('FactModules.php');
 include_once('FactContentItem.php');
 include_once('FactContentDataRawList.php');
 include_once('FactPage.php');
@@ -27,7 +27,7 @@ date_default_timezone_set(FACT_TIMEZONE);
 
 $xml = simplexml_load_file($argv[1]);
 $content = new FactContent($xml);
-$modules = new FactContentModules($content);
+$modules = new FactModules($content);
 $trans = new FactTransDefault($modules->getLocalPaths());
 
 
